@@ -7,8 +7,8 @@
 
 #include "estructuras.h"
 
-void print_queue(PCB *node);
-int addRandomNode(PCB **queue);
+void print_queue(PCB_t *node);
+int addRandomNode(PCB_t **queue);
 void test_queue();
 void printMachineParameters();
 
@@ -23,28 +23,26 @@ int main(int argc, char *argv[])
     srand(time(NULL));
     pthread_t machine_creation_thread;
 
-
     setParameters(argv, argc);
 
     printMachineParameters();
 
-    if (pthread_create(&machine_creation_thread, NULL, (void *)spawnMachine, NULL) != 0)
+    if (pthread_create(&machine_creation_thread, NULL, (void *)spawnMachine, &processQueue) != 0)
     {
         fprintf(stderr, "Error creating machine creation thread\n");
         return 1;
     }
 
-
-    PCB *processQueue = create_processQueue();
+    PCB_t *processQueue = create_processQueue();
 
     free_processQueue(processQueue);
 
-    pthread_join(machine_creation_thread, NULL); 
+    pthread_join(machine_creation_thread, NULL);
 }
 
-PCB *create_processQueue()
+PCB_t *create_processQueue()
 {
-    PCB *node = malloc(sizeof(PCB));
+    PCB_t *node = malloc(sizeof(PCB_t));
     node->prev = node;
     node->pid = 1;
     node->lifetime = 56;
@@ -52,7 +50,7 @@ PCB *create_processQueue()
     return node;
 }
 
-void print_queue(PCB *node)
+void print_queue(PCB_t *node)
 {
     while (node != NULL)
     {
@@ -62,7 +60,7 @@ void print_queue(PCB *node)
 }
 
 // Encola el nodo al final de la cola
-int enqueue(PCB **head, PCB *node)
+int enqueue(PCB_t **head, PCB_t *node)
 {
     node->next = NULL;
     if (*head == NULL)
@@ -71,7 +69,7 @@ int enqueue(PCB **head, PCB *node)
         node->prev = node;
         return 0;
     }
-    PCB *aux = (*head)->prev;
+    PCB_t *aux = (*head)->prev;
     aux->next = node;
     node->prev = aux;
     (*head)->prev = node;
@@ -80,11 +78,11 @@ int enqueue(PCB **head, PCB *node)
 }
 
 // Devuelve el primer nodo y cambia la cabeza de la cola
-PCB *dequeue(PCB **head)
+PCB_t *dequeue(PCB_t **head)
 {
     if (head == NULL || *head == NULL)
         return NULL;
-    PCB *node = *head;
+    PCB_t *node = *head;
     (*head) = node->next;
     if (*head != NULL)
         (*head)->prev = node->prev;
@@ -94,24 +92,25 @@ PCB *dequeue(PCB **head)
     return node;
 }
 
-int addRandomNode(PCB **queue)
+int addRandomNode(PCB_t **queue)
 {
-    PCB *node = malloc(sizeof(PCB));
+    PCB_t *node = malloc(sizeof(PCB_t));
     if (node == NULL)
         return 1; // malloc failed
 
     node->prev = NULL;
-    node->pid = rand() % 255;
+    node->pid = pid;
     node->lifetime = rand() % 1024;
     node->next = NULL;
 
+    pid++;
     return enqueue(queue, node);
 }
 
 void test_queue()
 {
 
-    PCB *queue = create_processQueue();
+    PCB_t *queue = create_processQueue();
     for (int i = 0; i < 5; i++)
     {
         addRandomNode(&queue);
@@ -120,7 +119,7 @@ void test_queue()
 
     printf("------------------------\n");
 
-    PCB *node;
+    PCB_t *node;
     node = dequeue(&queue);
     print_queue(queue);
     printf("------------------------\n");
@@ -141,24 +140,24 @@ void test_queue()
     free_processQueue(queue);
 }
 
-void free_processQueue(PCB *queue)
+void free_processQueue(PCB_t *queue)
 {
     while (queue != NULL)
     {
-        PCB *aux = queue;
+        PCB_t *aux = queue;
         queue = queue->next;
         free(aux);
     }
 }
 
-int clock_function(mutex_block *clock_mutex)
+int clock_function(mutex_block_t *clock_mutex)
 {
     int clock_counter = 0;
     double clock_interval = 1.0 / clockFreq; // Intervalo de tiempo entre ticks del reloj en segundos
 
     while (1)
     {
-        if (clock_counter >= clockFreq * duration)
+        if (clock_counter >= duration)
             break;
         pthread_mutex_lock(clock_mutex->mutex);
         sleep(clock_interval);
@@ -168,21 +167,21 @@ int clock_function(mutex_block *clock_mutex)
     return 0;
 }
 
-int spawnClock(pthread_t *clock_thread, mutex_block *clock_mutex)
+int spawnClock(pthread_t *clock_thread, mutex_block_t *clock_mutex)
 {
     return pthread_create(clock_thread, NULL, (void *)clock_function, clock_mutex);
 }
 
-int spawnTimer(pthread_t *timer_thread, thread_args *args)
+int spawnTimer(pthread_t *timer_thread, thread_args_t *args)
 {
     return pthread_create(timer_thread, NULL, (void *)timer_function, args);
 }
 
-int timer_function(thread_args *args)
+int timer_function(thread_args_t *args)
 {
     int clock = 0;
     while (1)
-    {   
+    {
         pthread_mutex_lock(args->timer_mutex->mutex);
         clock++;
         if (args->pgen_mutex->flag == 0)
@@ -224,23 +223,23 @@ int timer_function(thread_args *args)
     return 0;
 }
 
-int process_generator_function(mutex_block *pgen_mutex)
+int process_generator_function(pgen_args_t *args)
 {
     while (1)
     {
-        pthread_mutex_lock(pgen_mutex->mutex);
+        pthread_mutex_lock(args->pgen_mutex->mutex);
         
-        pthread_mutex_unlock(pgen_mutex->mutex);
+        pthread_mutex_unlock(args->pgen_mutex->mutex);
     }
     return 0;
 }
 
-int spawnProcessGenerator(pthread_t *pgen_thread, mutex_block *pgen_mutex)
+int spawnProcessGenerator(pthread_t *pgen_thread, pgen_args_t *pgen_args)
 {
-    return pthread_create(pgen_thread, NULL, (void *)process_generator_function, pgen_mutex);
+    return pthread_create(pgen_thread, NULL, (void *)process_generator_function, pgen_args);
 }
 
-int spawnMachine()
+int spawnMachine(PCB_t **processQueue)
 {
     pthread_t clock_thread, timer_thread, pgen_thread, scheduler_thread, dispatcher_thread;
 
@@ -249,12 +248,15 @@ int spawnMachine()
     pthread_mutex_t scheduler_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_t dispatcher_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-    mutex_block timer_mutex = {&timer_clock_mutex, 0};
-    mutex_block pgen_mutex_block = {&pgen_mutex, 0};
-    mutex_block scheduler_mutex_block = {&scheduler_mutex, 0};
-    mutex_block dispatcher_mutex_block = {&dispatcher_mutex, 0};
+    mutex_block_t timer_mutex = {&timer_clock_mutex, 0};
+    mutex_block_t pgen_mutex_block = {&pgen_mutex, 0};
+    mutex_block_t scheduler_mutex_block = {&scheduler_mutex, 0};
+    mutex_block_t dispatcher_mutex_block = {&dispatcher_mutex, 0};
 
-    thread_args args = {&timer_mutex, &pgen_mutex_block, &scheduler_mutex_block, &dispatcher_mutex_block};
+    thread_args_t thread_args = {&timer_mutex, &pgen_mutex_block, &scheduler_mutex_block, &dispatcher_mutex_block};
+    pgen_args_t pgen_args = {&pgen_mutex_block, processQueue};
+    scheduler_args_t scheduler_args = {&scheduler_mutex_block, processQueue};
+    dispatcher_args_t dispatcher_args = {&dispatcher_mutex_block, processQueue};
 
     printf("Spawning machine with %d CPUs, %d cores, and %d threads.\n", machine.ncpu, machine.ncore, machine.nthreads);
 
@@ -264,26 +266,30 @@ int spawnMachine()
         return 1;
     }
 
-    if (spawnTimer(&timer_thread, &args) != 0)
+    if (spawnTimer(&timer_thread, &thread_args) != 0)
     {
         fprintf(stderr, "Error creating timer thread\n");
         return 1;
     }
 
+    if (spawnProcessGenerator(&pgen_thread, &pgen_args) != 0)
+    {
+        fprintf(stderr, "Error creating process generator thread\n");
+        return 1;
+    }
 
 
 
     pthread_join(clock_thread, NULL);
     pthread_join(timer_thread, NULL);
-    // pthread_join(pgen_thread, NULL);
+    pthread_join(pgen_thread, NULL);
     // pthread_join(scheduler_thread, NULL);
     // pthread_join(dispatcher_thread, NULL);
-
 
     return 0;
 }
 
-int setParameters( char *argv[], int argc)
+int setParameters(char *argv[], int argc)
 {
 
     int found[6] = {-1, -1, -1, -1, -1, -1};
