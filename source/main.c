@@ -10,6 +10,7 @@
 void print_queue(PCB *node);
 int addRandomNode(PCB **queue);
 void test_queue();
+void printMachineParameters();
 
 int clockFreq = 0;
 int ticks_per_clock = 0;
@@ -19,15 +20,17 @@ Machine machine;
 int main(int argc, char *argv[])
 {
     // srand(time(NULL));
-    pthread_t machine_creation_thread;
+    //pthread_t machine_creation_thread;
 
-    setParameters(&machine, argv, argc);
+    setParameters( argv, argc);
 
-    if (pthread_create(&machine_creation_thread, NULL, (void *)spawnMachine, NULL) != 0)
-    {
-        fprintf(stderr, "Error creating machine creation thread\n");
-        return 1;
-    }
+    printMachineParameters();
+
+    // if (pthread_create(&machine_creation_thread, NULL, (void *)spawnMachine, NULL) != 0)
+    // {
+    //     fprintf(stderr, "Error creating machine creation thread\n");
+    //     return 1;
+    // }
 
     PCB *processQueue = create_processQueue();
 
@@ -36,7 +39,7 @@ int main(int argc, char *argv[])
 
     free_processQueue(processQueue);
 
-    pthread_join(machine_creation_thread, NULL);
+   // pthread_join(machine_creation_thread, NULL);
 }
 
 PCB *create_processQueue()
@@ -221,7 +224,7 @@ int timer_function(thread_args *args)
     return 0;
 }
 
-int spawnMachine(Machine *machine)
+int spawnMachine()
 {
     pthread_t clock_thread, timer_thread, pgen_thread, scheduler_thread, dispatcher_thread;
 
@@ -237,7 +240,7 @@ int spawnMachine(Machine *machine)
 
     thread_args args = {&timer_mutex, &pgen_mutex_block, &scheduler_mutex_block, &dispatcher_mutex_block};
 
-    printf("Spawning machine with %d CPUs, %d cores, and %d threads.\n", machine->ncpu, machine->ncore, machine->nthreads);
+    printf("Spawning machine with %d CPUs, %d cores, and %d threads.\n", machine.ncpu, machine.ncore, machine.nthreads);
 
     if (spawnClock(&clock_thread, &timer_mutex) != 0)
     {
@@ -262,7 +265,7 @@ int spawnMachine(Machine *machine)
     return 0;
 }
 
-int setParameters(struct Machine *machine, char *argv[], int argc)
+int setParameters( char *argv[], int argc)
 {
 
     int found[6] = {-1, -1, -1, -1, -1, -1};
@@ -279,20 +282,20 @@ int setParameters(struct Machine *machine, char *argv[], int argc)
         if (strcmp(argv[i], "-cpus") == 0 && found[0] == -1)
         {
 
-            machine->ncpu = atoi(argv[i + 1]);
-            found[0] = machine->ncpu;
+            machine.ncpu = atoi(argv[i + 1]);
+            found[0] = machine.ncpu;
         }
         else if (strcmp(argv[i], "-cores") == 0 && found[1] == -1)
         {
 
-            machine->ncore = atoi(argv[i + 1]);
-            found[1] = machine->ncore;
+            machine.ncore = atoi(argv[i + 1]);
+            found[1] = machine.ncore;
         }
         else if (strcmp(argv[i], "-hwthreads") == 0 && found[2] == -1)
         {
 
-            machine->nthreads = atoi(argv[i + 1]);
-            found[2] = machine->nthreads;
+            machine.nthreads = atoi(argv[i + 1]);
+            found[2] = machine.nthreads;
         }
         else if (strcmp(argv[i], "-clock-freq") == 0 && found[3] == -1)
         {
@@ -324,4 +327,20 @@ int setParameters(struct Machine *machine, char *argv[], int argc)
             return 1;
         }
     }
+}
+void printMachineParameters()
+{
+    printf("\n========== MACHINE PARAMETERS ==========\n");
+
+    printf("CPUs:              %d\n", machine.ncpu);
+    printf("Cores:             %d\n", machine.ncore);
+    printf("Hardware threads:  %d\n", machine.nthreads);
+
+    printf("----------------------------------------\n");
+
+    printf("Clock frequency:   %d\n", clockFreq);
+    printf("Timer frequency:   %d\n", ticks_per_clock);
+    printf("Duration:          %d\n", duration);
+
+    printf("========================================\n\n");
 }
