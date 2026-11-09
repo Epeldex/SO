@@ -11,6 +11,7 @@ void print_queue(PCB *node);
 int addRandomNode(PCB **queue);
 void test_queue();
 
+int pid = 0;
 int clockFreq = 0;
 int ticks_per_clock = 0;
 int duration = 0;
@@ -18,7 +19,7 @@ Machine machine;
 
 int main(int argc, char *argv[])
 {
-    // srand(time(NULL));
+    srand(time(NULL));
     pthread_t machine_creation_thread;
 
     setParameters(&machine, argv, argc);
@@ -29,10 +30,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    PCB *processQueue = create_processQueue();
 
-    // test_queue();
-    // code
+    PCB *processQueue = create_processQueue();
 
     free_processQueue(processQueue);
 
@@ -221,6 +220,22 @@ int timer_function(thread_args *args)
     return 0;
 }
 
+int process_generator_function(mutex_block *pgen_mutex)
+{
+    while (1)
+    {
+        pthread_mutex_lock(pgen_mutex->mutex);
+        
+        pthread_mutex_unlock(pgen_mutex->mutex);
+    }
+    return 0;
+}
+
+int spawnProcessGenerator(pthread_t *pgen_thread, mutex_block *pgen_mutex)
+{
+    return pthread_create(pgen_thread, NULL, (void *)process_generator_function, pgen_mutex);
+}
+
 int spawnMachine(Machine *machine)
 {
     pthread_t clock_thread, timer_thread, pgen_thread, scheduler_thread, dispatcher_thread;
@@ -250,6 +265,8 @@ int spawnMachine(Machine *machine)
         fprintf(stderr, "Error creating timer thread\n");
         return 1;
     }
+
+
 
 
     pthread_join(clock_thread, NULL);
