@@ -158,7 +158,7 @@ int clock_function(mutex_block *clock_mutex)
 
     while (1)
     {
-        if (clock_counter >= clockFreq * duration)
+        if (clock_counter >= duration)
             break;
         pthread_mutex_lock(clock_mutex->mutex);
         sleep(clock_interval);
@@ -341,10 +341,30 @@ int setParameters( char *argv[], int argc)
     {
         if (found[i] == -1)
         {
-            printf("Falta un parametro obligatorio\n");
-            return 1;
+            switch (i)
+            {
+            case 0:
+                machine.ncpu = 2;
+                break;
+            case 1:
+                machine.ncore = 4;
+                break;
+            case 2:             
+                machine.nthreads = 2;
+                break;
+            case 3:
+                clockFreq = 1;
+                break;
+            case 4:
+                ticks_per_clock = 1;
+                break;
+            case 5:
+                duration = 100;
+                break;
+            }
         }
     }
+    return -1;
 }
 void printMachineParameters()
 {
