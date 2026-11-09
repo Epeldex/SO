@@ -37,5 +37,5 @@ int spawnClock(pthread_t *clock_thread, mutex_block *timer_mutex);
 int clock_function(mutex_block *timer_mutex);
 int spawnTimer(pthread_t *timer_thread, thread_args *args);
 int timer_function(thread_args *args);
-int spawnProcessGenerator(pthread_t *pgen_thread, thread_args *args);
+int spawnProcessGenerator(pthread_t *pgen_thread, mutex_block *args);
 int process_generator_function(mutex_block *pgen_mutex);

@@ -224,7 +224,6 @@ int timer_function(thread_args *args)
     return 0;
 }
 
-<<<<<<< HEAD
 int process_generator_function(mutex_block *pgen_mutex)
 {
     while (1)
