@@ -2,6 +2,9 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+
 #include "estructuras.h"
 
 void print_queue(PCB *node);
@@ -9,23 +12,31 @@ int addRandomNode(PCB **queue);
 void test_queue();
 
 int clockFreq = 0;
-int timerfreq = 0;
+int ticks_per_clock = 0;
 int duration = 0;
+Machine machine;
 
 int main(int argc, char *argv[])
 {
-    srand(time(NULL));
+    // srand(time(NULL));
+    pthread_t machine_creation_thread;
 
-    Machine machine;
-    
     setParameters(&machine, argv, argc);
+
+    if (pthread_create(&machine_creation_thread, NULL, (void *)spawnMachine, NULL) != 0)
+    {
+        fprintf(stderr, "Error creating machine creation thread\n");
+        return 1;
+    }
 
     PCB *processQueue = create_processQueue();
 
-    test_queue();
+    // test_queue();
     // code
 
     free_processQueue(processQueue);
+
+    pthread_join(machine_creation_thread, NULL);
 }
 
 PCB *create_processQueue()
@@ -136,6 +147,121 @@ void free_processQueue(PCB *queue)
         free(aux);
     }
 }
+
+int clock_function(mutex_block *clock_mutex)
+{
+    int clock_counter = 0;
+    double clock_interval = 1.0 / clockFreq; // Intervalo de tiempo entre ticks del reloj en segundos
+
+    while (1)
+    {
+        if (clock_counter >= clockFreq * duration)
+            break;
+        pthread_mutex_lock(clock_mutex->mutex);
+        sleep(clock_interval);
+        clock_counter++;
+        pthread_mutex_unlock(clock_mutex->mutex);
+    }
+    return 0;
+}
+
+int spawnClock(pthread_t *clock_thread, mutex_block *clock_mutex)
+{
+    return pthread_create(clock_thread, NULL, (void *)clock_function, clock_mutex);
+}
+
+int spawnTimer(pthread_t *timer_thread, thread_args *args)
+{
+    return pthread_create(timer_thread, NULL, (void *)timer_function, args);
+}
+
+int timer_function(thread_args *args)
+{
+    int clock = 0;
+    while (1)
+    {   
+        pthread_mutex_lock(args->timer_mutex->mutex);
+        clock++;
+        if (args->pgen_mutex->flag == 0)
+        {
+            pthread_mutex_lock(args->pgen_mutex->mutex);
+            args->pgen_mutex->flag = 1;
+        }
+        else if (args->scheduler_mutex->flag == 0)
+        {
+            pthread_mutex_lock(args->scheduler_mutex->mutex);
+            args->scheduler_mutex->flag = 1;
+        }
+        else if (args->dispatcher_mutex->flag == 0)
+        {
+            pthread_mutex_lock(args->dispatcher_mutex->mutex);
+            args->dispatcher_mutex->flag = 1;
+        }
+
+        if (clock % ticks_per_clock == 0)
+        {
+            if (args->pgen_mutex->flag == 1)
+            {
+                pthread_mutex_unlock(args->pgen_mutex->mutex);
+                args->pgen_mutex->flag = 0;
+            }
+            else if (args->scheduler_mutex->flag == 1)
+            {
+                pthread_mutex_unlock(args->scheduler_mutex->mutex);
+                args->scheduler_mutex->flag = 0;
+            }
+            else if (args->dispatcher_mutex->flag == 1)
+            {
+                pthread_mutex_unlock(args->dispatcher_mutex->mutex);
+                args->dispatcher_mutex->flag = 0;
+            }
+        }
+        pthread_mutex_unlock(args->timer_mutex->mutex);
+    }
+    return 0;
+}
+
+int spawnMachine(Machine *machine)
+{
+    pthread_t clock_thread, timer_thread, pgen_thread, scheduler_thread, dispatcher_thread;
+
+    pthread_mutex_t timer_clock_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t pgen_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t scheduler_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t dispatcher_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+    mutex_block timer_mutex = {&timer_clock_mutex, 0};
+    mutex_block pgen_mutex_block = {&pgen_mutex, 0};
+    mutex_block scheduler_mutex_block = {&scheduler_mutex, 0};
+    mutex_block dispatcher_mutex_block = {&dispatcher_mutex, 0};
+
+    thread_args args = {&timer_mutex, &pgen_mutex_block, &scheduler_mutex_block, &dispatcher_mutex_block};
+
+    printf("Spawning machine with %d CPUs, %d cores, and %d threads.\n", machine->ncpu, machine->ncore, machine->nthreads);
+
+    if (spawnClock(&clock_thread, &timer_mutex) != 0)
+    {
+        fprintf(stderr, "Error creating clock thread\n");
+        return 1;
+    }
+
+    if (spawnTimer(&timer_thread, &args) != 0)
+    {
+        fprintf(stderr, "Error creating timer thread\n");
+        return 1;
+    }
+
+
+    pthread_join(clock_thread, NULL);
+    pthread_join(timer_thread, NULL);
+    // pthread_join(pgen_thread, NULL);
+    // pthread_join(scheduler_thread, NULL);
+    // pthread_join(dispatcher_thread, NULL);
+
+
+    return 0;
+}
+
 int setParameters(struct Machine *machine, char *argv[], int argc)
 {
 
@@ -175,8 +301,8 @@ int setParameters(struct Machine *machine, char *argv[], int argc)
         }
         else if (strcmp(argv[i], "-timer-freq") == 0 && found[4] == -1)
         {
-            timerfreq = atoi(argv[i + 1]);
-            found[4] = timerfreq;
+            ticks_per_clock = atoi(argv[i + 1]);
+            found[4] = ticks_per_clock;
         }
         else if (strcmp(argv[i], "-duration") == 0 && found[5] == -1)
         {
