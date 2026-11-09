@@ -1,16 +1,24 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
-
+#include <string.h>
 #include "estructuras.h"
 
 void print_queue(PCB *node);
 int addRandomNode(PCB **queue);
 void test_queue();
 
+int clockFreq = 0;
+int timerfreq = 0;
+int duration = 0;
+
 int main(int argc, char *argv[])
 {
     srand(time(NULL));
+
+    Machine machine;
+    
+    setParameters(&machine, argv, argc);
 
     PCB *processQueue = create_processQueue();
 
@@ -18,60 +26,6 @@ int main(int argc, char *argv[])
     // code
 
     free_processQueue(processQueue);
-
-    int clockFreq =0;
-    int timerfreq =0;
-    int duration =0;
-    struct Machine machine;
-    int found[6] = {-1, -1, -1, -1, -1, -1};
-    
-    for (int i = 1; i<argc; i+=2){
-         
-        if (i + 1 >= argc) {
-            printf("Falta el valor del parametro %s\n", argv[i]);
-            return 1;
-            }
-
-    if(strcmp(argv[i], "-cpus") == 0 && found[0]==-1){
-
-        machine.ncpu=atoi(argv[i+1]);
-        found[0]=machine.ncpu;
-
-    } else if (strcmp(argv[i], "-cores") == 0 && found[1]==-1) {
-
-        machine.ncore=atoi(argv[i+1]);
-        found[1]=machine.ncore;
-    }
-    else if (strcmp(argv[i], "-hwthreads")== 0 && found[2]==-1)  {
-
-        machine.nthreads=atoi(argv[i+1]);
-        found[2]=machine.nthreads;
-
-    }else if(strcmp(argv[i], "-clock-freq") == 0 && found[3]==-1){
-        clockFreq=atoi(argv[i+1]);
-        found[3]=clockFreq;
-    }
-    else if(strcmp(argv[i], "-timer-freq") == 0 && found[4]==-1){
-        timerfreq=atoi(argv[i+1]);
-        found[4]=timerfreq;
-
-    }
-    else if(strcmp(argv[i], "-duration") == 0 && found[5]==-1){
-        duration=atoi(argv[i+1]);
-        found[5]=duration;
-    }
-    
-    else {
-        printf("El parametro %s no existe \n", argv[i]);
-        return 1;
-    }
-    }
-    for (int i = 0; i < 6; i++) {
-        if (found[i] == -1) {
-            printf("Falta un parametro obligatorio\n");
-            return 1;
-        }
-    }
 }
 
 PCB *create_processQueue()
@@ -180,5 +134,68 @@ void free_processQueue(PCB *queue)
         PCB *aux = queue;
         queue = queue->next;
         free(aux);
+    }
+}
+int setParameters(struct Machine *machine, char *argv[], int argc)
+{
+
+    int found[6] = {-1, -1, -1, -1, -1, -1};
+
+    for (int i = 1; i < argc; i += 2)
+    {
+
+        if (i + 1 >= argc)
+        {
+            printf("Falta el valor del parametro %s\n", argv[i]);
+            return 1;
+        }
+
+        if (strcmp(argv[i], "-cpus") == 0 && found[0] == -1)
+        {
+
+            machine->ncpu = atoi(argv[i + 1]);
+            found[0] = machine->ncpu;
+        }
+        else if (strcmp(argv[i], "-cores") == 0 && found[1] == -1)
+        {
+
+            machine->ncore = atoi(argv[i + 1]);
+            found[1] = machine->ncore;
+        }
+        else if (strcmp(argv[i], "-hwthreads") == 0 && found[2] == -1)
+        {
+
+            machine->nthreads = atoi(argv[i + 1]);
+            found[2] = machine->nthreads;
+        }
+        else if (strcmp(argv[i], "-clock-freq") == 0 && found[3] == -1)
+        {
+            clockFreq = atoi(argv[i + 1]);
+            found[3] = clockFreq;
+        }
+        else if (strcmp(argv[i], "-timer-freq") == 0 && found[4] == -1)
+        {
+            timerfreq = atoi(argv[i + 1]);
+            found[4] = timerfreq;
+        }
+        else if (strcmp(argv[i], "-duration") == 0 && found[5] == -1)
+        {
+            duration = atoi(argv[i + 1]);
+            found[5] = duration;
+        }
+
+        else
+        {
+            printf("El parametro %s no existe \n", argv[i]);
+            return 1;
+        }
+    }
+    for (int i = 0; i < 6; i++)
+    {
+        if (found[i] == -1)
+        {
+            printf("Falta un parametro obligatorio\n");
+            return 1;
+        }
     }
 }
