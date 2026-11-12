@@ -1,3 +1,8 @@
+#ifndef ESTRUCTURAS_H
+#define ESTRUCTURAS_H
+
+#include <pthread.h>
+
 typedef struct Machine
 {
     int ncpu;
@@ -45,15 +50,4 @@ typedef struct dispatcher_args_t
     PCB_t **processQueue;
 } dispatcher_args_t;
 
-PCB_t *create_processQueue();
-int enqueue(PCB_t **head, PCB_t *node);
-PCB_t *dequeue(PCB_t **head);
-void free_processQueue(PCB_t *queue);
-int setParameters(char *argv[], int argc);
-int spawnMachine(PCB_t **processQueue);
-int spawnClock(pthread_t *clock_thread, mutex_block_t *timer_mutex);
-int clock_function(mutex_block_t *timer_mutex);
-int spawnTimer(pthread_t *timer_thread, thread_args_t *args);
-int timer_function(thread_args_t *args);
-int spawnProcessGenerator(pthread_t *pgen_thread, pgen_args_t *args);
-int process_generator_function(pgen_args_t *args);
+#endif
