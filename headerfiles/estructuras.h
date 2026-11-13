@@ -8,7 +8,17 @@ typedef struct Machine
     int ncpu;
     int ncore;
     int nthreads;
+    HWThread *hwthreads;
+    int totalThreads;
+    
 } Machine;
+
+typedef struct HWThread
+{
+    int occupied;
+    PCB_t *assignedProcess;
+
+} HWThread;
 
 typedef struct PCB_t
 {
@@ -16,6 +26,12 @@ typedef struct PCB_t
     int pid;
     double lifetime;
     struct PCB_t *next;
+    enum ProcessState state;
+    double remainingTime;
+    double arrivalTime;
+    int priority;
+    int quantumLeft;
+    pthread_t *assignedThread;
 } PCB_t;
 
 typedef struct mutex_block_t
@@ -50,4 +66,11 @@ typedef struct dispatcher_args_t
     PCB_t **processQueue;
 } dispatcher_args_t;
 
+
+enum ProcessState
+{
+    READY,
+    RUNNING,
+    FiNISHED
+};
 #endif
